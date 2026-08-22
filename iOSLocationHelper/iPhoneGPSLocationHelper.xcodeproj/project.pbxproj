@@ -41,7 +41,6 @@
 				A20000000000000000000001 /* App.swift */,
 				A20000000000000000000002 /* Info.plist */,
 			);
-			path = iPhoneGPSLocationHelper;
 			sourceTree = "<group>";
 		};
 		A40000000000000000000002 /* Products */ = {
