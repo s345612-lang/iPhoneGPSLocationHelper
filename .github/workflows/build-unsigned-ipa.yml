@@ -1,0 +1,39 @@
+name: Build unsigned iPhone GPS Helper
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build unsigned archive
+        run: |
+          set -e
+          xcodebuild \
+            -project iOSLocationHelper/iPhoneGPSLocationHelper.xcodeproj \
+            -scheme iPhoneGPSLocationHelper \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/iPhoneGPSLocationHelper.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            archive
+
+      - name: Create unsigned IPA
+        run: |
+          set -e
+          APP_PATH="$RUNNER_TEMP/iPhoneGPSLocationHelper.xcarchive/Products/Applications/iPhoneGPSLocationHelper.app"
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -R "$APP_PATH" "$RUNNER_TEMP/Payload/"
+          cd "$RUNNER_TEMP"
+          zip -qry iPhoneGPSLocationHelper-unsigned.ipa Payload
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: iPhoneGPSLocationHelper-unsigned-ipa
+          path: ${{ runner.temp }}/iPhoneGPSLocationHelper-unsigned.ipa
