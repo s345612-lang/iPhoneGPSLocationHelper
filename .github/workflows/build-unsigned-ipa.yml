@@ -6,13 +6,20 @@ on:
 jobs:
   build:
     runs-on: macos-14
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Show project files
+        run: |
+          echo "=== Project tree ==="
+          find . -maxdepth 5 -type f | sort
+
       - name: Build unsigned archive
         run: |
           set -e
+
           xcodebuild \
             -project iOSLocationHelper/iPhoneGPSLocationHelper.xcodeproj \
             -scheme iPhoneGPSLocationHelper \
@@ -23,17 +30,75 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             archive
 
+      - name: Verify archived app
+        run: |
+          set -e
+
+          APP_PATH="$RUNNER_TEMP/iPhoneGPSLocationHelper.xcarchive/Products/Applications/iPhoneGPSLocationHelper.app"
+
+          echo "=== APP PATH ==="
+          echo "$APP_PATH"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: .app not found!"
+            exit 1
+          fi
+
+          echo "=== APP CONTENTS ==="
+          find "$APP_PATH" -maxdepth 2 -type f -print
+
+          echo "=== INFO ==="
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleExecutable" \
+            "$APP_PATH/Info.plist"
+
+          EXECUTABLE_NAME=$(
+            /usr/libexec/PlistBuddy \
+              -c "Print :CFBundleExecutable" \
+              "$APP_PATH/Info.plist"
+          )
+
+          echo "Executable: $EXECUTABLE_NAME"
+
+          if [ ! -f "$APP_PATH/$EXECUTABLE_NAME" ]; then
+            echo "ERROR: Executable does not exist!"
+            exit 1
+          fi
+
+          echo "=== EXECUTABLE FOUND ==="
+          ls -lh "$APP_PATH/$EXECUTABLE_NAME"
+          file "$APP_PATH/$EXECUTABLE_NAME"
+
       - name: Create unsigned IPA
         run: |
           set -e
+
           APP_PATH="$RUNNER_TEMP/iPhoneGPSLocationHelper.xcarchive/Products/Applications/iPhoneGPSLocationHelper.app"
+
+          rm -rf "$RUNNER_TEMP/Payload"
           mkdir -p "$RUNNER_TEMP/Payload"
+
           cp -R "$APP_PATH" "$RUNNER_TEMP/Payload/"
+
           cd "$RUNNER_TEMP"
-          zip -qry iPhoneGPSLocationHelper-unsigned.ipa Payload
+
+          rm -f iPhoneGPSLocationHelper-unsigned.ipa
+
+          zip -qry \
+            iPhoneGPSLocationHelper-unsigned.ipa \
+            Payload
+
+          echo "=== IPA ==="
+          ls -lh iPhoneGPSLocationHelper-unsigned.ipa
+
+          echo "=== IPA CONTENTS ==="
+          unzip -l iPhoneGPSLocationHelper-unsigned.ipa
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
+          name: iPhoneGPSLocationHelper-unsigned-ipa
+          path: ${{ runner.temp }}/iPhoneGPSLocationHelper-unsigned.ipa
+
           name: iPhoneGPSLocationHelper-unsigned-ipa
           path: ${{ runner.temp }}/iPhoneGPSLocationHelper-unsigned.ipa
